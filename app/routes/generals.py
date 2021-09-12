@@ -2,6 +2,7 @@ from flask import redirect, url_for, request
 from ..app import app, db
 from ..constantes import KEY_WS, URL_ROOT
 from ..utils.service_identifiant import IdentifierService
+from ..utils.service_numero_inventaire import InventoryNumberService
 import requests
 import json
 import re
@@ -30,14 +31,14 @@ def insert(num_inventaire):
         # delete de l'existant
         try:
             ancieninstance = db.engine.execute("select instanceid from instance where code = '"+str(num_inventaire)+"'").fetchall()[0][0]
-            db.engine.execute("delete from instance_identifier where instanceid = '"+str(ancieninstance)+"'")
+            db.engine.execute("delete from instance_identifier where instanceid = '"+str(ancieninstance)+"' and identifiertype != 'Numéro d''inventaire' and identifiertype != 'Cote physique'")
             db.engine.execute("delete from adresse where instanceid = '"+str(ancieninstance)+"'")
             db.engine.execute("delete from geolocalisation where instanceid = '"+str(ancieninstance)+"'")
             db.engine.execute("delete from instance_concept where instanceid = '"+str(ancieninstance)+"'")
             db.engine.execute("delete from instance_agent where instanceid = '"+str(ancieninstance)+"'")
             db.engine.execute("delete from instance_text where instanceid = '"+str(ancieninstance)+"'")
             db.engine.execute("delete from instance_instance where sourceinstanceid = '"+str(ancieninstance)+"' or targetinstanceid = '"+str(ancieninstance)+"'")
-            db.engine.execute("delete from instance where instanceid = '"+str(ancieninstance)+"'")
+            #db.engine.execute("delete from instance where instanceid = '"+str(ancieninstance)+"'")
 
             events = str([event[0]  for event in db.engine.execute("select evenementid from instance_evenement where instanceid = '"+str(ancieninstance)+"'").fetchall()]).replace("\"", "'").replace("[", "(").replace("]", ")")
             db.engine.execute("delete from instance_evenement where instanceid = '"+str(ancieninstance)+"'")
@@ -53,11 +54,11 @@ def insert(num_inventaire):
         # création de l'instance
         instanceid  = IdentifierService.create("instance", str(num_inventaire))
         instancetype = (db.engine.execute("select conceptid from concept where code = '"+data["type"]+"'")).fetchall()[0][0] 
-        db.engine.execute("INSERT into instance (instanceid, instancetype, code) values ('"+instanceid+"','"+ instancetype +"', '"+str(num_inventaire)+"')")
+        db.engine.execute("INSERT or ignore into instance (instanceid, instancetype, code) values ('"+instanceid+"','"+ instancetype +"', '"+str(num_inventaire)+"') ")
 
         #identifier
         identifierid = IdentifierService.create("identifier", str(num_inventaire))
-        db.engine.execute("insert into instance_identifier(instanceid, identifierid, identifiertype, identifiervalue) values ('"+instanceid+"','"+identifierid+"','Numéro d''inventaire','"+str(num_inventaire)+"')")
+        db.engine.execute("insert or ignore into instance_identifier(instanceid, identifierid, identifiertype, identifiervalue) values ('"+instanceid+"','"+identifierid+"','Numéro d''inventaire','"+str(num_inventaire)+"')")
 
         #adresse
         if "Rue" in data or "N_rue" in data:
@@ -221,7 +222,7 @@ def insert(num_inventaire):
         
         # cote physique: identifiant d'instance
         if "Cote" in data:
-            db.engine.execute("insert into instance_identifier(instanceid, identifierid, identifiertype, identifiervalue) values ('"+ instanceid +"', '"+IdentifierService.create("identifier", str(data["Cote"]) + "Cote" + str(num_inventaire))+"', 'Cote physique', '"+str(data["Cote"])+"')")
+            db.engine.execute("insert into instance_identifier(instanceid, identifierid, identifiertype, identifiervalue) values ('"+ instanceid +"', '"+IdentifierService.create("identifier",  "Cote physique" + str(num_inventaire))+"', 'Cote physique', '"+str(data["Cote"])+"') on conflict (identifierid) do update set identifiervalue = '"+str(data["Cote"])+"' ")
 
         # activité d'inventaire
         if "Auteur" in data and "Date_inventaire" in data:
@@ -316,3 +317,7 @@ def insert_agent():
     else:
         json_retour["status"]  =  "not allowed"
     return json_retour
+
+@app.route("/create_inventory_number/<cote_physique>", methods=["POST"])
+def create_inventory_number(cote_physique):
+    return InventoryNumberService.create(cote_physique)
