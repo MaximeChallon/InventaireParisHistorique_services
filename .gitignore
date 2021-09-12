@@ -9,4 +9,3 @@ app/utils/get_l*
 sitemap.xml
 docs/
 .vscode/
-*.sqlite
