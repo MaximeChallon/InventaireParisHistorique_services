@@ -6,6 +6,7 @@ from ..utils.service_numero_inventaire import InventoryNumberService
 import requests
 import json
 import re
+from datetime import datetime
 
 
 @app.route("/select/<int:num_inventaire>", methods=['POST'])
@@ -194,7 +195,10 @@ def insert(num_inventaire):
         
         # generalite
         if "Generalite" in data:
-            conceptid_gen = db.engine.execute("select conceptid from concept inner join referentiel on referentiel.referentielid = concept.referentielid and referentiel.code = 'GENERALITE_ARCHITECTURE' where concept.code = '"+data["Generalite"]+"'").fetchall()[0][0]
+            mot_cle = data["Generalite"]
+            if mot_cle == "HOTEL PARTICULIER" or mot_cle == "HÔTEL PARTICULIER":
+                mot_cle = "HÔTEL_PARTICULIER"
+            conceptid_gen = db.engine.execute("select conceptid from concept inner join referentiel on referentiel.referentielid = concept.referentielid and referentiel.code = 'GENERALITE_ARCHITECTURE' where concept.code = '"+mot_cle+"'").fetchall()[0][0]
             db.engine.execute("insert into instance_concept(instanceid, conceptid, relationtype) values ('"+instanceid+"', '"+conceptid_gen+"', 'Généralité d''architecture')")
 
         #mots clés
@@ -218,7 +222,7 @@ def insert(num_inventaire):
 
         # cote base: identifiant d'instance
         if "Cote_base" in data:
-            db.engine.execute("insert into instance_identifier(instanceid, identifierid, identifiertype, identifiervalue) values ('"+ instanceid +"', '"+IdentifierService.create("identifier", str(data["Cote_base"]))+"', 'Cote de la base de numérisations', '"+str(data["Cote_base"])+"')")
+            db.engine.execute("insert into instance_identifier(instanceid, identifierid, identifiertype, identifiervalue) values ('"+ instanceid +"', '"+IdentifierService.create("identifier", str(data["Cote_base"] + datetime.now().strftime("%d/%m/%Y %H:%M:%S")))+"', 'Cote de la base de numérisations', '"+str(data["Cote_base"])+"')")
         
         # cote physique: identifiant d'instance
         if "Cote" in data:
