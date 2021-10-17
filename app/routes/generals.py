@@ -61,6 +61,11 @@ def insert(num_inventaire):
         identifierid = IdentifierService.create("identifier", str(num_inventaire))
         db.engine.execute("insert or ignore into instance_identifier(instanceid, identifierid, identifiertype, identifiervalue) values ('"+instanceid+"','"+identifierid+"','Numéro d''inventaire','"+str(num_inventaire)+"')")
 
+        #identifiant métier
+        if "Id_metier" in data:
+            identifierid_metier = IdentifierService.create("identifier", str(data["Id_metier"] + "idmetier" + data["Id_metier_type"]))
+            db.engine.execute("insert or ignore into instance_identifier(instanceid, identifierid, identifiertype, identifiervalue) values ('"+instanceid+"','"+identifierid_metier+"','"+data["Id_metier_type"]+"','"+str(data["Id_metier"])+"')")
+
         #adresse
         if "Rue" in data or "N_rue" in data:
             adresseid = IdentifierService.create("adresse", str(data["Rue"] if "Rue" in data else "") + (data["N_rue"] if "N_rue" in data else "") + str(num_inventaire))
@@ -82,6 +87,9 @@ def insert(num_inventaire):
             db.engine.execute(requete)
         
         #TODO: sites
+        if "Site" in data:
+            value = (re.compile(r'[\n\r\t]').sub(" ", data["Site"])).replace("'", "''")
+            db.engine.execute("insert into instance_text (instanceid, textid, texttype, textlang, textvalue) values ('"+instanceid+"','"+IdentifierService.create("text", value + "site" + str(num_inventaire))+"','Site','fre','"+value+"')")
 
         # geoloc
         if "Latitude" in data and "Longitude" in data:
@@ -198,7 +206,7 @@ def insert(num_inventaire):
             mot_cle = data["Generalite"]
             if mot_cle == "HOTEL PARTICULIER" or mot_cle == "HÔTEL PARTICULIER":
                 mot_cle = "HÔTEL_PARTICULIER"
-            conceptid_gen = db.engine.execute("select conceptid from concept inner join referentiel on referentiel.referentielid = concept.referentielid and referentiel.code = 'GENERALITE_ARCHITECTURE' where concept.code = '"+mot_cle+"'").fetchall()[0][0]
+            conceptid_gen = db.engine.execute("select conceptid from concept inner join referentiel on referentiel.referentielid = concept.referentielid and referentiel.code = 'GENERALITE_ARCHITECTURE' where concept.code like '%"+mot_cle+"%'").fetchall()[0][0]
             db.engine.execute("insert into instance_concept(instanceid, conceptid, relationtype) values ('"+instanceid+"', '"+conceptid_gen+"', 'Généralité d''architecture')")
 
         #mots clés
@@ -219,6 +227,10 @@ def insert(num_inventaire):
         if "Note" in data:
             value_note= (re.compile(r'[\n\r\t]').sub(" ", data["Note"])).replace("'", "''")
             db.engine.execute("insert into instance_text (instanceid, textid, texttype, textlang, textvalue) values ('"+instanceid+"','"+IdentifierService.create("text", value_note + "note" + str(num_inventaire))+"','Note','fre','"+value_note+"')")
+        
+        if "Note2" in data:
+            value_note2= (re.compile(r'[\n\r\t]').sub(" ", data["Note2"])).replace("'", "''")
+            db.engine.execute("insert into instance_text (instanceid, textid, texttype, textlang, textvalue) values ('"+instanceid+"','"+IdentifierService.create("text", value_note2 + "note" + str(num_inventaire))+"','Note','fre','"+value_note2+"')")
 
         # cote base: identifiant d'instance
         if "Cote_base" in data:
@@ -228,6 +240,21 @@ def insert(num_inventaire):
         if "Cote" in data:
             db.engine.execute("insert into instance_identifier(instanceid, identifierid, identifiertype, identifiervalue) values ('"+ instanceid +"', '"+IdentifierService.create("identifier",  "Cote physique" + str(num_inventaire))+"', 'Cote physique', '"+str(data["Cote"])+"') on conflict (identifierid) do update set identifiervalue = '"+str(data["Cote"])+"' ")
 
+        #activité entrée base numérisation
+        if "Entree_base_num" in data:
+            try:
+                agentid = db.engine.execute("select agentid from agent_text where textvalue like 'INCONNU'").fetchall()[0][0]
+            except: 
+                # créer agent
+                post_headers = {"ws-key": KEY_WS}
+                envoi_json = {"Type":"PP"}
+                envoi_json["Textes"] = [{"texttype": "Code inventaire", "textlang":"fre", "textvalue": "INCONNU"}]
+                r = requests.post(URL_ROOT + "/insert_agent", data=json.dumps(envoi_json), headers=post_headers)
+                agentid = json.loads((r.text))["agentid"]
+            activiteid = IdentifierService.create("activite", str(data["Entree_base_num"] + "entree base num")+"inventaire" + str(num_inventaire))
+            db.engine.execute("insert into activite(activiteid,  activitetype, activitedate, agentid) values ('"+activiteid+"','Inventaire','"+str(data["Entree_base_num"])+"','"+agentid+"')")
+            db.engine.execute("insert into instance_activite(instanceid,activiteid,relationtype) values ('"+instanceid+"', '"+activiteid+"', 'Entrée en base de numérisation')")
+        
         # activité d'inventaire
         if "Auteur" in data and "Date_inventaire" in data:
             # chercher l'agent sinon le créer
