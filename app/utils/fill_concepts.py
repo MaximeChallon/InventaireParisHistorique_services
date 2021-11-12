@@ -20,10 +20,13 @@ MH = os.environ["CLASSEMENT_MH"]
 SQLALCHEMY_DATABASE_URI = os.environ["SQLALCHEMY_DATABASE_URI"]
 db_path = SQLALCHEMY_DATABASE_URI.replace("///", "///"+BASE_DIR+ "/app/")
 engine = create_engine(db_path)
-engine.execute("delete from concept_text")
-engine.execute("delete from concept")
-engine.execute("delete from referentiel_text")
-engine.execute("delete from referentiel")
+try:
+    engine.execute("delete from concept_text")
+    engine.execute("delete from concept")
+    engine.execute("delete from referentiel_text")
+    engine.execute("delete from referentiel")
+except:
+    pass
 
 
 # créer les référentiels
