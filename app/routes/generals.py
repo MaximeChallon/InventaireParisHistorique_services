@@ -1,12 +1,76 @@
 from flask import redirect, url_for, request
 from ..app import app, db
-from ..constantes import KEY_WS, URL_ROOT
+from ..constantes import KEY_WS, URL_ROOT, SQLALCHEMY_DATABASE_URI_ABSOLUTE
 from ..utils.service_identifiant import IdentifierService
 from ..utils.service_numero_inventaire import InventoryNumberService
 import requests
 import json
 import re
+import sqlite3
+import os
+import pandas as pd
 from datetime import datetime
+
+@app.route("/to_excel", methods=['POST'])
+def to_excel():
+    json_retour = {}
+    headers = request.headers
+    ws_key = headers.get("ws-key")
+    data = request.get_json(force=True)
+    if KEY_WS == ws_key:
+        json_retour["status"]  =  "ok"
+        filepath = data["filepath"]
+        limit = data["limit"]
+        os.system("rm " + filepath)
+        conn = sqlite3.connect(SQLALCHEMY_DATABASE_URI_ABSOLUTE)
+        # la requête sera la sortie
+        query = conn.execute("""
+            with cte as(select ac.instanceid, ad.code, rank() over(partition by ac.instanceid order by ad.code) as rang
+            from instance_concept ac
+            left join concept ad on ad.conceptid = ac.conceptid 
+            where ac.relationtype = 'Mot clé')
+                select c.identifiervalue as N_inventaire, d.rue as Rue, d.numero as N_rue, d.arrondissement as Arrondissement, d.ville as Ville, d.departement as Departement,
+                e.latitude as Latitude, e.longitude as Longitude, g.code as Support, i.code as Couleur, k.code as Taille, m.datedebut as Date_prise_vue, o.textvalue as Photographe,
+                null as Droits, q.textvalue as Mention_don, s.textvalue as Mention_collection, u.datedebut as Date_construction, w.textvalue as Architecte, y.code as Classement_MH,
+                z.textvalue as Legende, ab.code as Generalite_architecture, ae.code as Mot_cle1, af.code as Mot_cle2, ag.code as Mot_cle3, ah.code as Mot_cle4, ai.code as Mot_cle5, 
+                aj.code as Mot_cle6, ak.textvalue as Autre_adresse, al.textvalue as Notes, am.identifiervalue as Cote_base, an.identifiervalue as Cote_classement, 
+                ap.activitedate as Date_inventaire, aq.textvalue as Auteur
+                from instance a
+                inner join concept b on a.instancetype = b.conceptid and b.code = 'PHOTO'
+                left join instance_identifier c on c.instanceid = a.instanceid and c.identifiertype = 'Numéro d''inventaire'
+                left join adresse d on d.instanceid = a.instanceid and d.adressetype  = 'Principale' left join geolocalisation e on e.instanceid = a.instanceid
+                left join instance_concept f on f.instanceid = a.instanceid and f.relationtype = 'Support' left join concept g on g.conceptid = f.conceptid 
+                left join instance_concept h on h.instanceid = a.instanceid and h.relationtype = 'Couleur' left join concept i on i.conceptid = h.conceptid 
+                left join instance_concept j on j.instanceid = a.instanceid and j.relationtype = 'Taille' left join concept k on k.conceptid = j.conceptid 
+                left join instance_evenement l on l.instanceid = a.instanceid and l.relationtype = 'Prise de vue' left join evenement m on m.evenementid = l.evenementid
+                left join instance_agent n on n.instanceid = a.instanceid and n.relationtype = 'Photographe' left join agent_text o on o.agentid = n.agentid and o.texttype = 'Identité civile'
+                left join instance_agent p on p.instanceid = a.instanceid and p.relationtype = 'Donateur' left join agent_text q on q.agentid = p.agentid and q.texttype = 'Identité civile'
+                left join instance_instance r on r.sourceinstanceid = a.instanceid  left join instance_text s on s.instanceid = r.targetinstanceid and s.texttype = 'Label'
+                left join instance_evenement t on t.instanceid = a.instanceid and t.relationtype = 'Construction' left join evenement u on u.evenementid = t.evenementid
+                left join instance_agent v on v.instanceid = a.instanceid and v.relationtype = 'Architecte' left join agent_text w on w.agentid = v.agentid and w.texttype = 'Identité civile'
+                left join instance_concept x on x.instanceid = a.instanceid and x.relationtype = 'Classement MH' left join concept y on y.conceptid = x.conceptid 
+                left join instance_text z on z.instanceid = a.instanceid and z.texttype = 'Légende'
+                left join instance_concept aa on aa.instanceid = a.instanceid and aa.relationtype = 'Généralité d''architecture' left join concept ab on ab.conceptid = aa.conceptid 
+                left join cte ae on ae.instanceid = a.instanceid and ae.rang = 1
+                left join cte af on af.instanceid = a.instanceid and af.rang = 2
+                left join cte ag on ag.instanceid = a.instanceid and ag.rang = 3
+                left join cte ah on ah.instanceid = a.instanceid and ah.rang = 4
+                left join cte ai on ai.instanceid = a.instanceid and ai.rang = 5
+                left join cte aj on aj.instanceid = a.instanceid and aj.rang = 6
+                left join instance_text ak on ak.instanceid = a.instanceid and ak.texttype = 'Autre adresse'
+                left join instance_text al on al.instanceid = a.instanceid and al.texttype = 'Note'
+                left join instance_identifier am on am.instanceid = a.instanceid and am.identifiertype = 'Cote de la base de numérisations'
+                left join instance_identifier an on an.instanceid = a.instanceid and an.identifiertype = 'Cote physique'
+                left join instance_activite ao on ao.instanceid = a.instanceid and ao.relationtype = 'Inventaire' left join activite ap on ap.activiteid = ao.activiteid
+                left join agent_text aq on aq.agentid = ap.agentid and aq.texttype = 'Code inventaire'
+                limit """ + str(limit))
+
+        results= pd.DataFrame.from_records(data = query.fetchall(), columns = [column[0] for column in query.description])
+        results.to_excel(filepath, sheet_name="Inventaire", index=False)
+        json_retour["filepath"] = filepath
+    else:
+        json_retour["status"]  =  "not allowed"
+    return json_retour
 
 
 @app.route("/select/<int:num_inventaire>", methods=['POST'])
@@ -14,8 +78,15 @@ def select(num_inventaire):
     json_retour = {}
     headers = request.headers
     ws_key = headers.get("ws-key")
+    data = request.get_json(force=True)
     if KEY_WS == ws_key:
         json_retour["status"]  =  "ok"
+        try:
+            instanceid = db.engine.execute("select instanceid from instance_identifier where identifiertype = '"+str(data["type"])+"' and identifiervalue = '"+str(num_inventaire)+"'").fetchall()[0][0]
+            json_retour["instanceid"] = instanceid
+            json_retour["num_inv"] = db.engine.execute("select identifiervalue from instance_identifier where instanceid = '"+instanceid+"' and identifiertype = 'Numéro d''inventaire'").fetchall()[0][0]
+        except:
+            pass
     else:
         json_retour["status"]  =  "not allowed"
     return json_retour
@@ -98,8 +169,16 @@ def insert(num_inventaire):
         
         # support 
         if "Support" in data:
-            conceptid_support = db.engine.execute("select conceptid from concept where code = '"+data["Support"]+"'").fetchall()[0][0]
-            db.engine.execute("insert into instance_concept(instanceid, conceptid, relationtype) values ('"+instanceid+"', '"+conceptid_support+"', 'Support')")
+            try:
+                support = data["Support"]
+                if support == "TRANSPARENT":
+                    support = "NEGATIF"
+                if support == "PHOTOCOPIE":
+                    support = "TIRAGE PAPIER"
+                conceptid_support = db.engine.execute("select conceptid from concept where code = '"+data["Support"]+"'").fetchall()[0][0]
+                db.engine.execute("insert into instance_concept(instanceid, conceptid, relationtype) values ('"+instanceid+"', '"+conceptid_support+"', 'Support')")
+            except:
+                pass
         
         # couleur 
         if "Couleur" in data:
@@ -129,7 +208,7 @@ def insert(num_inventaire):
         #photographe: créer l'agent s'il n'existe pas
         if "Photographe" in data:
             try:
-                agentid_photographe = db.engine.execute("select agentid from agent_text where textvalue = '"+data["Photographe"]+"'").fetchall()[0][0]
+                agentid_photographe = db.engine.execute("select agentid from agent_text where textvalue = '"+data["Photographe"].replace("'", "''")+"'").fetchall()[0][0]
             except: 
                 # créer agent
                 post_headers = {"ws-key": KEY_WS}
@@ -144,7 +223,7 @@ def insert(num_inventaire):
         #dons: créer l'agent s'il n'existe pas
         if "Don" in data:
             try:
-                agentid_don = db.engine.execute("select agentid from agent_text where textvalue = '"+data["Don"]+"'").fetchall()[0][0]
+                agentid_don = db.engine.execute("select agentid from agent_text where textvalue = '"+data["Don"].replace("'", "''")+"'").fetchall()[0][0]
             except: 
                 # créer agent
                 post_headers = {"ws-key": KEY_WS}
@@ -181,7 +260,7 @@ def insert(num_inventaire):
         #architecte: créer l'agent s'il n'existe pas
         if "Architecte" in data:
             try:
-                agentid_archi = db.engine.execute("select agentid from agent_text where textvalue = '"+data["Architecte"]+"'").fetchall()[0][0]
+                agentid_archi = db.engine.execute("select agentid from agent_text where textvalue = '"+data["Architecte"].replace("'", "''")+"'").fetchall()[0][0]
             except: 
                 # créer agent
                 post_headers = {"ws-key": KEY_WS}
@@ -193,8 +272,11 @@ def insert(num_inventaire):
 
         # classement mh 
         if "MH" in data:
-            conceptid_mh = db.engine.execute("select conceptid from concept inner join referentiel on referentiel.referentielid = concept.referentielid and referentiel.code = 'MH' where concept.code = '"+data["MH"]+"'").fetchall()[0][0]
-            db.engine.execute("insert into instance_concept(instanceid, conceptid, relationtype) values ('"+instanceid+"', '"+conceptid_mh+"', 'Classement MH')")
+            try:
+                conceptid_mh = db.engine.execute("select conceptid from concept inner join referentiel on referentiel.referentielid = concept.referentielid and referentiel.code = 'MH' where concept.code = '"+data["MH"].upper()+"'").fetchall()[0][0]
+                db.engine.execute("insert into instance_concept(instanceid, conceptid, relationtype) values ('"+instanceid+"', '"+conceptid_mh+"', 'Classement MH')")
+            except:
+                pass
 
         # légende
         if "Legende" in data:
@@ -206,8 +288,11 @@ def insert(num_inventaire):
             mot_cle = data["Generalite"]
             if mot_cle == "HOTEL PARTICULIER" or mot_cle == "HÔTEL PARTICULIER":
                 mot_cle = "HÔTEL_PARTICULIER"
-            conceptid_gen = db.engine.execute("select conceptid from concept inner join referentiel on referentiel.referentielid = concept.referentielid and referentiel.code = 'GENERALITE_ARCHITECTURE' where concept.code like '%"+mot_cle+"%'").fetchall()[0][0]
-            db.engine.execute("insert into instance_concept(instanceid, conceptid, relationtype) values ('"+instanceid+"', '"+conceptid_gen+"', 'Généralité d''architecture')")
+            try:
+                conceptid_gen = db.engine.execute("select conceptid from concept inner join referentiel on referentiel.referentielid = concept.referentielid and referentiel.code = 'GENERALITE_ARCHITECTURE' where concept.code like '%"+mot_cle+"%'").fetchall()[0][0]
+                db.engine.execute("insert into instance_concept(instanceid, conceptid, relationtype) values ('"+instanceid+"', '"+conceptid_gen+"', 'Généralité d''architecture')")
+            except:
+                pass
 
         #mots clés
         if "Mots_cles" in data:
