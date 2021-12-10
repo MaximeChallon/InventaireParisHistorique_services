@@ -152,12 +152,12 @@ def insert(num_inventaire):
                 ",'Principale'" +
                 (",'"+ data["N_rue"] +"'" if "N_rue" in data else "") +
                 ("," + str(data["Arrondissement"]) if "Arrondissement" in data else "") +
-                (",'" + str(data["Ville"]) + "'"  if "Ville" in data else "") +
+                (",'" + str(data["Ville"]).replace("'", "''") + "'"  if "Ville" in data else "") +
                 ("," + str(data["Departement"])  if "Departement" in data else "") +
             ")")
             db.engine.execute(requete)
         
-        #TODO: sites
+        #Site
         if "Site" in data:
             value = (re.compile(r'[\n\r\t]').sub(" ", data["Site"])).replace("'", "''")
             db.engine.execute("insert into instance_text (instanceid, textid, texttype, textlang, textvalue) values ('"+instanceid+"','"+IdentifierService.create("text", value + "site" + str(num_inventaire))+"','Site','fre','"+value+"')")
