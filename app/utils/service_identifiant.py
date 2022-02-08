@@ -13,7 +13,8 @@ class IdentifierService():
                             "geolocalisation": "08",
                             "evenement": "09",
                             "agent": "10",
-                            "adresse": "11"}
+                            "adresse": "11",
+                            "geometry":"12"}
         hash = (hashlib.sha1(cle.encode("UTF-8")).hexdigest())[:10]
         identifier = table_prefixes[type_entite] + hash
         return identifier

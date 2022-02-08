@@ -15,4 +15,4 @@ db = SQLAlchemy(app)
 app.config['SECRET_KEY'] = SECRET_KEY
 
 
-from .routes import generals
+from .routes import generals, adresses

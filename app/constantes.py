@@ -10,6 +10,8 @@ KEY_WS = os.environ["KEY_WS"]
 SQLALCHEMY_DATABASE_URI = os.environ["SQLALCHEMY_DATABASE_URI"]
 SQLALCHEMY_DATABASE_URI_ABSOLUTE = os.environ["SQLALCHEMY_DATABASE_URI_ABSOLUTE"]
 URL_ROOT  = os.environ["URL_ROOT"]
+PARIS_PBF_FILE= os.environ["PARIS_PBF_FILE"]
+OSM_TAGS_KEPT = [  "addr:city" ,  "addr:housename",  "addr:housenumber",    "addr:place",  "addr:postcode",  "addr:province",   "addr:street",  "addr:streetnumber",   "building",   "amenity",  "bridge",  "historic",  "int_name",  "int_ref",  "landuse",  "leisure",  "loc_name",  "loc_ref",  "man_made",  "military",  "name",  "nat_name",  "nat_ref",  "natural",  "office",  "official_name",  "operator",  "place",  "postal_code",  "ref",  "shop",  "short_name",  "tourism",  "waterway",  "wikipedia", "wikidata"]
 
 REFERENTIELS = [{"Code": "COULEUR", "Textes":[{"texttype": "Label", "textlang":"fre", "textvalue":"Colorisation de la photographie"}]},{"Code": "SUPPORT", "Textes":[{"texttype": "Label", "textlang":"fre", "textvalue":"Support physique des instances"}]},{"Code": "GENERALITE_ARCHITECTURE", "Textes":[{"texttype": "Label", "textlang":"fre", "textvalue":"Généralités d'architecture"}]},{"Code": "MOT_CLE", "Textes":[{"texttype": "Label", "textlang":"fre", "textvalue":"Descripteurs-sujet des photographies"}]},{"Code": "ENTITE", "Textes":[{"texttype": "Label", "textlang":"fre", "textvalue":"Référentiel des entités instance"}]},{"Code": "MH", "Textes":[{"texttype": "Label", "textlang":"fre", "textvalue":"Classement sur la liste des Monuments Historiques"}]} ,{"Code": "TAILLE", "Textes":[{"texttype": "Label", "textlang":"fre", "textvalue":"Dimensions du support"}]} ]
 

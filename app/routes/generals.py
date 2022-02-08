@@ -437,3 +437,7 @@ def insert_agent():
 @app.route("/create_inventory_number/<cote_physique>", methods=["POST"])
 def create_inventory_number(cote_physique):
     return InventoryNumberService.create(cote_physique)
+
+@app.route("/get_identifiant/<type_entite>/<cle>", methods=["GET"])
+def get_identifiant(type_entite, cle):
+    return IdentifierService.create(type_entite, cle)
