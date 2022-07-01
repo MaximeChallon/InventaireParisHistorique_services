@@ -282,6 +282,8 @@ def insert(num_inventaire):
         if "Legende" in data:
             value_legende = (re.compile(r'[\n\r\t]').sub(" ", data["Legende"])).replace("'", "''")
             db.engine.execute("insert into instance_text (instanceid, textid, texttype, textlang, textvalue) values ('"+instanceid+"','"+IdentifierService.create("text", value_legende + "legende" + str(num_inventaire))+"','Légende','fre','"+value_legende+"')")
+
+        #TODO: extraire de la légende des mots-clés
         
         # generalite
         if "Generalite" in data:
@@ -290,7 +292,7 @@ def insert(num_inventaire):
                 mot_cle = "HÔTEL_PARTICULIER"
             try:
                 conceptid_gen = db.engine.execute("select conceptid from concept inner join referentiel on referentiel.referentielid = concept.referentielid and referentiel.code = 'GENERALITE_ARCHITECTURE' where concept.code like '%"+mot_cle+"%'").fetchall()[0][0]
-                db.engine.execute("insert into instance_concept(instanceid, conceptid, relationtype) values ('"+instanceid+"', '"+conceptid_gen+"', 'Généralité d''architecture')")
+                db.engine.execute("insert or ignore into instance_concept(instanceid, conceptid, relationtype) values ('"+instanceid+"', '"+conceptid_gen+"', 'Généralité d''architecture') ")
             except:
                 pass
 
@@ -299,7 +301,7 @@ def insert(num_inventaire):
             for mot in data["Mots_cles"].replace("[", "").replace("]", "").split(","):
                 try:
                     conceptid_mot = db.engine.execute("select conceptid from concept inner join referentiel on referentiel.referentielid = concept.referentielid and referentiel.code = 'MOT_CLE' where concept.code = "+mot+"").fetchall()[0][0]
-                    db.engine.execute("insert into instance_concept(instanceid, conceptid, relationtype) values ('"+instanceid+"', '"+conceptid_mot+"', 'Mot clé')")
+                    db.engine.execute("insert or ignore into instance_concept(instanceid, conceptid, relationtype) values ('"+instanceid+"', '"+conceptid_mot+"', 'Mot clé')")
                 except Exception as e:
                     print(mot + " : " + str(e))
         
@@ -316,6 +318,8 @@ def insert(num_inventaire):
         if "Note2" in data:
             value_note2= (re.compile(r'[\n\r\t]').sub(" ", data["Note2"])).replace("'", "''")
             db.engine.execute("insert into instance_text (instanceid, textid, texttype, textlang, textvalue) values ('"+instanceid+"','"+IdentifierService.create("text", value_note2 + "note" + str(num_inventaire))+"','Note','fre','"+value_note2+"')")
+
+        #TODO: extraire des notes des mots-clés
 
         # cote base: identifiant d'instance
         if "Cote_base" in data:
